@@ -11,11 +11,8 @@ def lambda_handler(event, context):
   phone = event["request"]["userAttributes"]["phone_number"]
   status = event["request"]["userAttributes"]["cognito:user_status"]
   ts = int(time.time())
-  if "Admin" in event["request"]["userAttributes"] and event["request"]["userAttributes"]["Admin"] == True:
-    isAdmin = True
-  else:
-    isAdmin = False
-
+  isAdmin = ("Admin" in event["request"]["userAttributes"]
+             and event["request"]["userAttributes"]["Admin"] == True)
   dynamodb = boto3.resource('dynamodb')
   table = dynamodb.Table( os.environ["USERS_TABLE"] )
   response = table.put_item(

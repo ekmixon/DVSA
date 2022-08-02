@@ -29,20 +29,18 @@ def updateItem(item):
 
 def lambda_handler(event, context):
     action = event['body']['action']
-  
+
     if action == "add":
         item = event['body']['item']
-        res = addItem(item)
-        
+        return addItem(item)
+
     elif action == "delete":
         itemId = event['body']['itemId']
-        res = deleteItem(itemId)
-        
+        return deleteItem(itemId)
+
     elif action == "update":
         item = event['body']['item']
-        res = updateItem(item)
-        
-    else:
-        res = {"status": "err", "msg": "unknown command"}
+        return updateItem(item)
 
-    return res
+    else:
+        return {"status": "err", "msg": "unknown command"}

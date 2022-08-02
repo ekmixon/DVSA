@@ -17,36 +17,30 @@ from boto3.dynamodb.conditions import Key, Attr
     # 600: rejected
     
 def lambda_handler(event, context):
-    # Helper class to convert a DynamoDB item to JSON.
+# Helper class to convert a DynamoDB item to JSON.
+
+
+
     class DecimalEncoder(json.JSONEncoder):
         def default(self, o):
             if isinstance(o, decimal.Decimal):
-                if o % 1 > 0:
-                    return float(o)
-                else:
-                    return int(o)
+                return float(o) if o % 1 > 0 else int(o)
             return super(DecimalEncoder, self).default(o)
-    
-    dynamodb = boto3.resource('dynamodb') 
-    table = dynamodb.Table(os.environ["ORDERS_TABLE"])
-    orders = []
 
+
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(os.environ["ORDERS_TABLE"])
     response = table.scan(
         FilterExpression=Attr("orderStatus").eq(120)
     )
-    
-    for i in response['Items']:
-        orders.append(i['orderId'])
-    
+
+    orders = [i['orderId'] for i in response['Items']]
     while 'LastEvaluatedKey' in response:
         response = table.scan(
             FilterExpression=Attr("orderStatus").eq(120)
         )
-    
-        for i in response['Items']:
-            orders.append(i['orderId'])
-    
-    
+
+        orders.extend(i['orderId'] for i in response['Items'])
     lambda_client = boto3.client('lambda')
     for order in orders:
         payload = {"Records":[{"body":order}]}
@@ -55,5 +49,5 @@ def lambda_handler(event, context):
                 InvocationType='Event',
                 Payload=json.dumps(payload)
         )
-    
+
     return

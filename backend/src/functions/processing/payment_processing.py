@@ -17,8 +17,7 @@ def reported_stolen(ccn):
 
 def get_sum(ccn):
     try:
-        is_stolen = reported_stolen(ccn)
-        if is_stolen:
+        if is_stolen := reported_stolen(ccn):
             return -1
     except:
         pass
@@ -26,12 +25,12 @@ def get_sum(ccn):
     sum = 0
     num_digits = len(str(ccn))
     oddeven = num_digits & 1
-    for count in range(0, num_digits):
+    for count in range(num_digits):
         digit = int(ccn[count])
         if not count & 1 ^ oddeven:
-            digit = digit * 2
+            digit *= 2
         if digit > 9:
-            digit = digit - 9
+            digit -= 9
         sum = sum + digit
 
     return sum
@@ -44,7 +43,7 @@ def lambda_handler(event, context):
     ccn = data['ccn']
     exp_m = int(data['exp'].split("/")[0])
     exp_y = int(data['exp'].split("/")[1]) + 2000
-    d = datetime.datetime.today()
+    d = datetime.datetime.now()
 
     ccn_sum = get_sum(ccn)
 

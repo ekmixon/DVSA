@@ -38,10 +38,13 @@ def lambda_handler(event, context):
         }
     )
 
-    if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-        res = {"status": "ok", "msg": "order created", "order-id": orderId}
-    else:
-        res = {"status": "err", "msg": "could not update cart", "cart-id": event["cartId"]}
-
-    return res
+    return (
+        {"status": "ok", "msg": "order created", "order-id": orderId}
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200
+        else {
+            "status": "err",
+            "msg": "could not update cart",
+            "cart-id": event["cartId"],
+        }
+    )
 

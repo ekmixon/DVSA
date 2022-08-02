@@ -208,8 +208,6 @@ class JSONBackend(object):
             except self._decoder_exceptions[name] as e:
                 if idx == len(self._backend_names) - 1:
                     raise e
-                else:
-                    pass  # and try a more forgiving encoder, e.g. demjson
 
     # def loads
     loads = decode

@@ -7,20 +7,19 @@ from boto3.dynamodb.conditions import Key, Attr
 
 
 def lambda_handler(event, context):
-    # Helper class to convert a DynamoDB item to JSON.
+# Helper class to convert a DynamoDB item to JSON.
+
+
+
     class DecimalEncoder(json.JSONEncoder):
         def default(self, o):
             if isinstance(o, decimal.Decimal):
-                if o % 1 > 0:
-                    return float(o)
-                else:
-                    return int(o)
+                return float(o) if o % 1 > 0 else int(o)
             return super(DecimalEncoder, self).default(o)
+
 
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(os.environ["ORDERS_TABLE"])
-    orders = []
-
     ts = int(time.time())
 
     dateTo = ts if 'to' not in event else event['to']
@@ -37,17 +36,13 @@ def lambda_handler(event, context):
         FilterExpression=eval(fe),
     )
 
-    for i in response['Items']:
-        orders.append(i)
-
+    orders = list(response['Items'])
     while 'LastEvaluatedKey' in response:
         response = table.scan(
             FilterExpression=eval(fe),
             ExclusiveStartKey=response['LastEvaluatedKey']
         )
 
-        for i in response['Items']:
-            orders.append(i)
-
+        orders.extend(iter(response['Items']))
     res = {"status": "ok", "orders": orders}
     return json.loads(json.dumps(res, cls=DecimalEncoder).replace("\\\"", "\"").replace("\\n", ""))

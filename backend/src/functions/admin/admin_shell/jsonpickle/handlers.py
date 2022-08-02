@@ -118,14 +118,14 @@ class BaseHandler(object):
             json-friendly representation of `obj` once this method has
             finished.
         """
-        raise NotImplementedError('You must implement flatten() in %s' % self.__class__)
+        raise NotImplementedError(f'You must implement flatten() in {self.__class__}')
 
     def restore(self, obj):
         """
         Restore an object of the registered type from the json-friendly
         representation `obj` and return it.
         """
-        raise NotImplementedError('You must implement restore() in %s' % self.__class__)
+        raise NotImplementedError(f'You must implement restore() in {self.__class__}')
 
     @classmethod
     def handles(self, cls):
@@ -174,11 +174,7 @@ class DatetimeHandler(BaseHandler):
     def flatten(self, obj, data):
         pickler = self.context
         if not pickler.unpicklable:
-            if hasattr(obj, 'isoformat'):
-                result = obj.isoformat()
-            else:
-                result = compat.ustr(obj)
-            return result
+            return obj.isoformat() if hasattr(obj, 'isoformat') else compat.ustr(obj)
         cls, args = obj.__reduce__()
         flatten = pickler.flatten
         payload = util.b64encode(args[0])
@@ -192,7 +188,7 @@ class DatetimeHandler(BaseHandler):
         restore = unpickler.restore
         cls = restore(cls, reset=False)
         value = util.b64decode(args[0])
-        params = (value,) + tuple([restore(i, reset=False) for i in args[1:]])
+        params = (value,) + tuple(restore(i, reset=False) for i in args[1:])
         return cls.__new__(cls, *params)
 
 

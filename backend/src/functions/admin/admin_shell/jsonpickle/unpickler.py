@@ -301,9 +301,7 @@ class Unpickler(object):
 
     def _restore_type(self, obj):
         typeref = loadclass(obj[tags.TYPE], classes=self._classes)
-        if typeref is None:
-            return obj
-        return typeref
+        return obj if typeref is None else typeref
 
     def _restore_repr(self, obj):
         if self.safe:
@@ -407,10 +405,7 @@ class Unpickler(object):
             # ignore the reserved attribute
             if ignorereserved and k in tags.RESERVED:
                 continue
-            if isinstance(k, numeric_types):
-                str_k = k.__str__()
-            else:
-                str_k = k
+            str_k = k.__str__() if isinstance(k, numeric_types) else k
             self._namestack.append(str_k)
             k = restore_key(k)
             # step into the namespace
@@ -505,7 +500,7 @@ class Unpickler(object):
         return parent
 
     def _restore_tuple(self, obj):
-        return tuple([self._restore(v) for v in obj[tags.TUPLE]])
+        return tuple(self._restore(v) for v in obj[tags.TUPLE])
 
     def _restore_set(self, obj):
         return {self._restore(v) for v in obj[tags.SET]}
@@ -522,10 +517,7 @@ class Unpickler(object):
             for k, v in util.items(obj):
                 if _is_json_key(k):
                     continue
-                if isinstance(k, numeric_types):
-                    str_k = k.__str__()
-                else:
-                    str_k = k
+                str_k = k.__str__() if isinstance(k, numeric_types) else k
                 self._namestack.append(str_k)
                 data[k] = self._restore(v)
 
@@ -547,10 +539,7 @@ class Unpickler(object):
         else:
             # No special keys, thus we don't need to restore the keys either.
             for k, v in util.items(obj):
-                if isinstance(k, numeric_types):
-                    str_k = k.__str__()
-                else:
-                    str_k = k
+                str_k = k.__str__() if isinstance(k, numeric_types) else k
                 self._namestack.append(str_k)
                 data[k] = self._restore(v)
                 self._namestack.pop()
@@ -691,13 +680,16 @@ def getargs(obj, classes=None):
         obj_dict = obj[tags.OBJECT]
     except KeyError:
         return []
-    typeref = loadclass(obj_dict, classes=classes)
-    if not typeref:
+    if typeref := loadclass(obj_dict, classes=classes):
+        return (
+            seq_list
+            if hasattr(typeref, '_fields')
+            and len(typeref._fields) == len(seq_list)
+            else []
+        )
+
+    else:
         return []
-    if hasattr(typeref, '_fields'):
-        if len(typeref._fields) == len(seq_list):
-            return seq_list
-    return []
 
 
 class _trivialclassic:

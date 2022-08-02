@@ -232,9 +232,7 @@ def is_noncomplex(obj):
 
         * :class:`~time.struct_time`
     """
-    if type(obj) is time.struct_time:
-        return True
-    return False
+    return type(obj) is time.struct_time
 
 
 def is_function(obj):
@@ -507,7 +505,7 @@ def importable_name(cls):
     # Use the fully-qualified name if available (Python >= 3.3)
     name = getattr(cls, '__qualname__', cls.__name__)
     module = translate_module_name(cls.__module__)
-    return '{}.{}'.format(module, name)
+    return f'{module}.{name}'
 
 
 def b64encode(data):
@@ -555,8 +553,6 @@ def items(obj):
 
     """
     if PY3_ORDERED_DICT:
-        for k, v in obj.items():
-            yield k, v
+        yield from obj.items()
     else:
-        for k, v in sorted(obj.items(), key=itemgetter):
-            yield k, v
+        yield from sorted(obj.items(), key=itemgetter)

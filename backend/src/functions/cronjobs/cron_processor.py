@@ -18,23 +18,25 @@ from boto3.dynamodb.conditions import Key, Attr
     # 600: rejected
     
 def lambda_handler(event, context):
-    # Helper class to convert a DynamoDB item to JSON.
+# Helper class to convert a DynamoDB item to JSON.
+
+
+
     class DecimalEncoder(json.JSONEncoder):
         def default(self, o):
             if isinstance(o, decimal.Decimal):
-                if o % 1 > 0:
-                    return float(o)
-                else:
-                    return int(o)
+                return float(o) if o % 1 > 0 else int(o)
             return super(DecimalEncoder, self).default(o)
-    dynamodb = boto3.resource('dynamodb') 
+
+
+    dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(os.environ["ORDERS_TABLE"])
     orders = []
 
     response = table.scan(
         FilterExpression=Attr("orderStatus").gt(120)
     )
-    
+
     for i in response['Items']:
         status = int(json.dumps(i['orderStatus'], cls=DecimalEncoder))
         if status == 200:
@@ -43,15 +45,11 @@ def lambda_handler(event, context):
         elif status == 210:
             item = { "orderId": i['orderId'], "userId": i['userId'], "orderStatus": 300 }
             orders.append(item)
-        else:
-            pass
-                
-    
     while 'LastEvaluatedKey' in response:
         response = table.scan(
             FilterExpression=Attr("orderStatus").lt(120)
         )
-    
+
         for i in response['Items']:
             status = int(json.dumps(i['orderStatus'], cls=DecimalEncoder))
             if status == 200:
@@ -60,11 +58,8 @@ def lambda_handler(event, context):
             elif status == 210:
                 item = { "orderId": i['orderId'], "userId": i['userId'], "orderStatus": 300 }
                 orders.append(item)
-            else:
-                pass
-            
+    update_expr = 'SET orderStatus = :orderStatus'
     for order in orders:
-        update_expr = 'SET {} = :orderStatus'.format("orderStatus")
         response = table.update_item(
             Key={
                 "orderId": order['orderId'], 
@@ -74,5 +69,5 @@ def lambda_handler(event, context):
             ExpressionAttributeValues={
                 ':orderStatus': order['orderStatus']
             }
-        ) 
+        )
     return

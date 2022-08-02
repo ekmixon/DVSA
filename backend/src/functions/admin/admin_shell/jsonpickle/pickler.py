@@ -284,12 +284,7 @@ class Pickler(object):
         try:
 
             in_cycle = _in_cycle(obj, self._objs, max_reached, self.make_refs)
-            if in_cycle:
-                # break the cycle
-                flatten_func = repr
-            else:
-                flatten_func = self._get_flattener(obj)
-
+            flatten_func = repr if in_cycle else self._get_flattener(obj)
             if flatten_func is None:
                 self._pickle_warning(obj)
                 return None
@@ -314,20 +309,23 @@ class Pickler(object):
         if util.is_list(obj):
             if self._mkref(obj):
                 return list_recurse
-            else:
-                self._push()
-                return self._getref
+            self._push()
+            return self._getref
 
         # We handle tuples and sets by encoding them in a "(tuple|set)dict"
         if util.is_tuple(obj):
-            if not self.unpicklable:
-                return list_recurse
-            return lambda obj: {tags.TUPLE: [self._flatten(v) for v in obj]}
+            return (
+                (lambda obj: {tags.TUPLE: [self._flatten(v) for v in obj]})
+                if self.unpicklable
+                else list_recurse
+            )
 
         if util.is_set(obj):
-            if not self.unpicklable:
-                return list_recurse
-            return lambda obj: {tags.SET: [self._flatten(v) for v in obj]}
+            return (
+                (lambda obj: {tags.SET: [self._flatten(v) for v in obj]})
+                if self.unpicklable
+                else list_recurse
+            )
 
         if util.is_dictionary(obj):
             return self._flatten_dict_obj
@@ -348,23 +346,19 @@ class Pickler(object):
     def _ref_obj_instance(self, obj):
         """Reference an existing object or flatten if new"""
         if self.unpicklable:
-            if self._mkref(obj):
-                # We've never seen this object so return its
-                # json representation.
-                return self._flatten_obj_instance(obj)
-            # We've seen this object before so place an object
-            # reference tag in the data. This avoids infinite recursion
-            # when processing cyclical objects.
-            return self._getref(obj)
-        else:
-            max_reached = self._max_reached()
-            in_cycle = _in_cycle(obj, self._objs, max_reached, False)
-            if in_cycle:
-                # A circular becomes None.
-                return None
+            return (
+                self._flatten_obj_instance(obj)
+                if self._mkref(obj)
+                else self._getref(obj)
+            )
 
-            self._mkref(obj)
-            return self._flatten_obj_instance(obj)
+        max_reached = self._max_reached()
+        if in_cycle := _in_cycle(obj, self._objs, max_reached, False):
+            # A circular becomes None.
+            return None
+
+        self._mkref(obj)
+        return self._flatten_obj_instance(obj)
 
     def _flatten_file(self, obj):
         """
@@ -397,11 +391,7 @@ class Pickler(object):
         has_getstate = hasattr(obj, '__getstate__')
         # not using has_method since __getstate__() is handled separately below
 
-        if has_class:
-            cls = obj.__class__
-        else:
-            cls = type(obj)
-
+        cls = obj.__class__ if has_class else type(obj)
         # Check for a custom handler
         class_name = util.importable_name(cls)
         handler = handlers.get(cls, handlers.get(class_name))
@@ -452,8 +442,7 @@ class Pickler(object):
                 # at this point, reduce_val should be some kind of iterable
                 # pad out to len 5
                 rv_as_list = list(reduce_val)
-                insufficiency = 5 - len(rv_as_list)
-                if insufficiency:
+                if insufficiency := 5 - len(rv_as_list):
                     rv_as_list += [None] * insufficiency
 
                 if getattr(rv_as_list[0], '__name__', '') == '__newobj__':
@@ -547,12 +536,7 @@ class Pickler(object):
         return None
 
     def _flatten_function(self, obj):
-        if self.unpicklable:
-            data = {tags.FUNCTION: util.importable_name(obj)}
-        else:
-            data = None
-
-        return data
+        return {tags.FUNCTION: util.importable_name(obj)} if self.unpicklable else None
 
     def _flatten_dict_obj(self, obj, data=None):
         """Recursively call flatten() and return json-friendly dict"""
@@ -569,32 +553,26 @@ class Pickler(object):
 
             # Phase 2: serialize non-string keys.
             flatten = self._flatten_non_string_key_value_pair
-            for k, v in util.items(obj):
-                flatten(k, v, data)
         else:
             # If we have string keys only then we only need a single pass.
             flatten = self._flatten_key_value_pair
-            for k, v in util.items(obj):
-                flatten(k, v, data)
-
+        for k, v in util.items(obj):
+            flatten(k, v, data)
         # the collections.defaultdict protocol
         if hasattr(obj, 'default_factory') and callable(obj.default_factory):
             factory = obj.default_factory
             if util.is_type(factory):
                 # Reference the class/type
                 value = _mktyperef(factory)
+            elif self._mkref(factory):
+                # We've never seen this object before so pickle it in-place.
+                # Create an instance from the factory and assume that the
+                # resulting instance is a suitable examplar.
+                value = self._flatten_obj_instance(handlers.CloneFactory(factory()))
             else:
-                # The factory is not a type and could reference e.g. functions
-                # or even the object instance itself, which creates a cycle.
-                if self._mkref(factory):
-                    # We've never seen this object before so pickle it in-place.
-                    # Create an instance from the factory and assume that the
-                    # resulting instance is a suitable examplar.
-                    value = self._flatten_obj_instance(handlers.CloneFactory(factory()))
-                else:
-                    # We've seen this object before.
-                    # Break the cycle by emitting a reference.
-                    value = self._getref(factory)
+                # We've seen this object before.
+                # Break the cycle by emitting a reference.
+                value = self._getref(factory)
             data['default_factory'] = value
 
         # Sub-classes of dict
@@ -738,6 +716,4 @@ def _mktyperef(obj):
 
 def _wrap_string_slot(string):
     """Converts __slots__ = 'a' into __slots__ = ('a',)"""
-    if isinstance(string, string_types):
-        return (string,)
-    return string
+    return (string, ) if isinstance(string, string_types) else string

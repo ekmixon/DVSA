@@ -20,15 +20,14 @@ def get_items_from_rds(clusterId):
 
 def lambda_handler(event, context):
     print(json.dumps(event))
-    # Helper class to convert a DynamoDB item to JSON.
+
+
     class DecimalEncoder(json.JSONEncoder):
         def default(self, o):
             if isinstance(o, decimal.Decimal):
-                if o % 1 > 0:
-                    return float(o)
-                else:
-                    return int(o)
+                return float(o) if o % 1 > 0 else int(o)
             return super(DecimalEncoder, self).default(o)
+
 
     total = 0
     missing = {}
@@ -49,26 +48,26 @@ def lambda_handler(event, context):
         except ClientError as e:
             # handle missing item
             print(e.response['Error']['Message'])
-            res = {"status": "err", "msg": "could not find item: {}".format(obj)}
+            res = {"status": "err", "msg": f"could not find item: {obj}"}
             continue
-        
+
         if response.get("Item"):
             item = response["Item"]
             item_quantity = int(item["quantity"])
             if item_quantity <= 0:
                 missing[obj] = qty
-                
+
             elif item_quantity < qty:
                 missing[obj] = qty - item_quantity
                 qty = item_quantity
                 # ToDo: handle parital order
-            
+
             total = total + (item["price"] * qty)
-                
+
         else:
             missing[obj] = qty
-            
-    res = {"status": "ok", "total": float(total), "missing": missing}        
+
+    res = {"status": "ok", "total": float(total), "missing": missing}
     return {
         'statusCode': 200,
         'body': json.dumps(res)

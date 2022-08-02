@@ -14,39 +14,44 @@ def err():
 def getEmailId(email):
   latest_id = None
   try:
-    req = HTTP.request("GET", "https://www.1secmail.com/api/v1/?action=getMessages&login={}&domain={}".format(email.split("@")[0], email.split("@")[1]))
+    req = HTTP.request(
+        "GET",
+        f'https://www.1secmail.com/api/v1/?action=getMessages&login={email.split("@")[0]}&domain={email.split("@")[1]}',
+    )
   except Exception as e:
     err = "[ERR] "
     print (err + (str(e)))
     return False
-  
+
   if req.status > 299:
     return False
-    
+
   msg_list = json.loads(req.data)
-  aws_msg_list = []
-  for msg in msg_list:
-    if msg["subject"].find("Email Address Verification") > -1:
-      aws_msg_list.append(msg["id"])
-  
-  return max(aws_msg_list) if len(aws_msg_list) > 0 else None
+  aws_msg_list = [
+      msg["id"] for msg in msg_list
+      if msg["subject"].find("Email Address Verification") > -1
+  ]
+  return max(aws_msg_list, default=None)
 
 
 def getVerificationLink(email, _id):
   try:
-    req = HTTP.request("GET", "https://www.1secmail.com/api/v1/?action=readMessage&login={}&domain={}&id={}".format(email.split("@")[0], email.split("@")[1], _id))
+    req = HTTP.request(
+        "GET",
+        f'https://www.1secmail.com/api/v1/?action=readMessage&login={email.split("@")[0]}&domain={email.split("@")[1]}&id={_id}',
+    )
   except Exception as e:
     err = "[ERR] "
     print (err + (str(e)))
     return False
-  
+
   if req.status > 299:
     return False
-    
+
   body = json.loads(req.data)["body"]
   startpoint=body.find("https://email-verification")
   endpoint = body.find("Your request will not be processed unless you confirm the address using this URL.")
-  
+
   if (startpoint == -1 or endpoint == -1):
     return False
   return body[startpoint:endpoint-2]
@@ -60,26 +65,24 @@ def verifyEmail(link):
     print (err + (str(e)))
     return False
   data = req.data.decode("utf-8")
-  if data.find("You have successfully verified an email address") > -1 :
-    return True
-  return False
+  return data.find("You have successfully verified an email address") > -1
 
 
 def verify(email):
-  print("- SES Email account verification for: {}".format(email))
-  
+  print(f"- SES Email account verification for: {email}")
+
   print("-- requesting account verification...", end="")
-  os.system("aws ses verify-email-identity --email-address {}".format(email))
+  os.system(f"aws ses verify-email-identity --email-address {email}")
   time.sleep(3)
   print (" [OK]")
-  
+
   print("-- verifying verification mail received...", end="")
   _id = getEmailId(email)
   if not _id:
     err()
     return False
   print (" [OK]")
-  
+
   print("-- getting verification link...", end="")
   link = getVerificationLink(email, _id)
   if not link:
@@ -93,8 +96,8 @@ def verify(email):
     err()
     return False
   print (" [OK]")
-  
-  
+
+
   return True
 
 def removeIdentities():
@@ -106,8 +109,8 @@ def removeIdentities():
     emails = j["Identities"]
     for email in emails:
       if email.startswith("dvsa.") and email.endswith("@1secmail.com"):
-        print ("Deleting SES identity: " + email),
-        os.system("aws ses delete-identity --identity {}".format(email))
+        (print(f"Deleting SES identity: {email}"), )
+        os.system(f"aws ses delete-identity --identity {email}")
         print(" [OK]")
 
 

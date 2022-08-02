@@ -133,8 +133,7 @@ class PandasIndexHandler(BaseHandler):
         buf, meta = self.pp.restore_pandas(data)
         dtype = meta.get('dtype', None)
         name_bundle = {k: v for k, v in meta.items() if k in {'name', 'names'}}
-        idx = self.index_constructor(decode(buf), dtype=dtype, **name_bundle)
-        return idx
+        return self.index_constructor(decode(buf), dtype=dtype, **name_bundle)
 
 
 class PandasPeriodIndexHandler(PandasIndexHandler):
@@ -158,8 +157,7 @@ class PandasTimestampHandler(BaseHandler):
     def restore(self, data):
         _, meta = self.pp.restore_pandas(data)
         isoformat = meta['isoformat']
-        obj = pd.Timestamp(isoformat)
-        return obj
+        return pd.Timestamp(isoformat)
 
 
 class PandasPeriodHandler(BaseHandler):
@@ -178,8 +176,7 @@ class PandasPeriodHandler(BaseHandler):
         _, meta = self.pp.restore_pandas(data)
         start_time = decode(meta['start_time'])
         freqstr = meta['freqstr']
-        obj = pd.Period(start_time, freqstr)
-        return obj
+        return pd.Period(start_time, freqstr)
 
 
 class PandasIntervalHandler(BaseHandler):
@@ -200,8 +197,7 @@ class PandasIntervalHandler(BaseHandler):
         left = decode(meta['left'])
         right = decode(meta['right'])
         closed = str(meta['closed'])
-        obj = pd.Interval(left, right, closed=closed)
-        return obj
+        return pd.Interval(left, right, closed=closed)
 
 
 def register_handlers():

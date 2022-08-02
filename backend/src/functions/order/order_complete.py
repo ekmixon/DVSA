@@ -20,16 +20,17 @@ from boto3.dynamodb.conditions import Key, Attr
 # 600: rejected
 
 def lambda_handler(event, context):
-    # Helper class to convert a DynamoDB item to JSON.
+# Helper class to convert a DynamoDB item to JSON.
+
+
+
     class DecimalEncoder(json.JSONEncoder):
         def default(self, o):
             if isinstance(o, decimal.Decimal):
-                if o % 1 > 0:
-                    return float(o)
-                else:
-                    return int(o)
+                return float(o) if o % 1 > 0 else int(o)
             return super(DecimalEncoder, self).default(o)
-    
+
+
     orderId = event["orderId"]
     dynamodb = boto3.resource('dynamodb')
 
@@ -48,8 +49,8 @@ def lambda_handler(event, context):
 
             inventory_table = dynamodb.Table(os.environ["INVENTORY_TABLE"])
             items = obj["itemList"]
+            update_expr = 'ADD quantity :qty'
             for item in items:
-                update_expr = 'ADD quantity :qty'
                 response = inventory_table.update_item(
                   Key={"itemId": item, "category": "A"},
                   UpdateExpression=update_expr,
@@ -61,6 +62,6 @@ def lambda_handler(event, context):
             res = {"status": "ok", "msg": "updated inventory"}
 
         else:    
-          res = {"status": "err", "msg": "order was already processed"}
-    
+            res = {"status": "err", "msg": "order was already processed"}
+
     return res

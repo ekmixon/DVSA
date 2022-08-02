@@ -19,20 +19,21 @@ from decimal import Decimal
 # 600: rejected
 
 def lambda_handler(event, context):
-    # Helper class to convert a DynamoDB item to JSON.
+# Helper class to convert a DynamoDB item to JSON.
+
+
+
     class DecimalEncoder(json.JSONEncoder):
         def default(self, o):
             if isinstance(o, decimal.Decimal):
-                if o % 1 > 0:
-                    return float(o)
-                else:
-                    return int(o)
+                return float(o) if o % 1 > 0 else int(o)
             return super(DecimalEncoder, self).default(o)
+
 
     orderId = event["orderId"]
     userId = event["user"]
     http = urllib3.PoolManager()
-    
+
     # GET ITEMS FOR ORDER
     dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(os.environ["ORDERS_TABLE"])
@@ -58,7 +59,7 @@ def lambda_handler(event, context):
         res = json.loads(req.data)
         cartTotal = float(res['total'])
         missings = res.get("missing", {})
-            
+
         # SEND BILLING DATA TO PAYMENT
         url = os.environ["PAYMENT_PROCESS_URL"]
         data = json.dumps(event["billing"])
@@ -67,9 +68,8 @@ def lambda_handler(event, context):
         res = json.loads(req.data)
         ts = int(time.time())
         if res['status'] == 110:
-                res = {"status": "err", "msg": "invalid payment details"}
+            res = {"status": "err", "msg": "invalid payment details"}
 
-            # UPDATE ORDER WITH PAYMENT DETAILS
         elif res['status'] == 120:
             # UPDATE ORDER STATUS
             table = dynamodb.Table(os.environ["ORDERS_TABLE"])
@@ -86,11 +86,14 @@ def lambda_handler(event, context):
                 ':token': res['confirmation_token']
             }
             if missings:
-                new_item_list = {}
                 response = table.get_item(Key=key)
                 items = response.get("Item", {}).get("itemList", {})
-                for item in items:
-                    new_item_list[item] = items[item] - missings[item] if missings.get(item) else items[item]
+                new_item_list = {
+                    item: items[item] - missings[item]
+                    if missings.get(item)
+                    else items[item]
+                    for item in items
+                }
 
                 expression_attributes[":il"] = new_item_list
                 update_expression += ', itemList = :il'
@@ -109,10 +112,16 @@ def lambda_handler(event, context):
                     MessageBody=json.dumps({"orderId": orderId, "userId": userId}),
                     DelaySeconds=10
                 )
-                res = {"status": "ok", "amount": float(cartTotal), "token": res['confirmation_token'], "missing": missings}
+                res = {
+                    "status": "ok",
+                    "amount": cartTotal,
+                    "token": res['confirmation_token'],
+                    "missing": missings,
+                }
+
             except:
                   res = {"status": "err", "msg": "unknown error"}
-            
+
         else:
             res = {"status": "err", "msg": "could not process payment"}
     else:

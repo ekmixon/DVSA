@@ -37,7 +37,7 @@ def lambda_handler(event, context):
         res = {"status": "err", "msg": "too late to update order"}
         return res
 
-    update_expr = 'SET {} = :address'.format("address")
+    update_expr = 'SET address = :address'
     response = table.update_item(
         Key={"orderId": orderId, "userId": userId},
         UpdateExpression=update_expr,
@@ -47,8 +47,6 @@ def lambda_handler(event, context):
     )
 
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-        res = {"status": "ok", "msg": "address updated"}
+        return {"status": "ok", "msg": "address updated"}
     else:
-        res = {"status": "err", "msg": "could not update address"}
-
-    return res
+        return {"status": "err", "msg": "could not update address"}

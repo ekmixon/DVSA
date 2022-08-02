@@ -39,8 +39,6 @@ def lambda_handler(event, context):
     response = table.delete_item(Key=key)
 
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-        res = {"status": "ok", "msg": "order cancelled"}
+        return {"status": "ok", "msg": "order cancelled"}
     else:
-        res = {"status": "err", "msg": "could not cancel order"}
-
-    return res
+        return {"status": "err", "msg": "could not cancel order"}

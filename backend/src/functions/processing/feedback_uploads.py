@@ -13,13 +13,15 @@ def lambda_handler(event, context):
         s3 = boto3.client('s3')
         uuidv4 = str(uuid.uuid4())
         try:
-            response = s3.generate_presigned_post(os.environ["FEEDBACK_BUCKET"], 
-                                                uuidv4 + "_" + event["file"],
-                                                ExpiresIn=120
-                                                )
+            response = s3.generate_presigned_post(
+                os.environ["FEEDBACK_BUCKET"],
+                f"{uuidv4}_" + event["file"],
+                ExpiresIn=120,
+            )
+
             print(response)
         except ClientError as e:
-            print(str(e))
+            print(e)
             return json.dumps({"status": "err", "msg": "could not get signed url"})
 
         return response
@@ -28,8 +30,8 @@ def lambda_handler(event, context):
         filename = parse.unquote_plus(event["Records"][0]["s3"]["object"]["key"])
         if not is_safe(filename):
             return {"status": "error", "message": "invalid filename"}
-            
-        os.system("touch /tmp/{} /tmp/{}.txt".format(filename, filename))
+
+        os.system(f"touch /tmp/{filename} /tmp/{filename}.txt")
 
 
     else:

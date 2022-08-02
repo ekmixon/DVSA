@@ -125,8 +125,7 @@ class NumpyNDArrayHandlerBinary(NumpyNDArrayHandler):
             data['byteorder'] = get_byteorder(obj)
 
     def restore_byteorder(self, data, arr):
-        byteorder = data.get('byteorder', None)
-        if byteorder:
+        if byteorder := data.get('byteorder', None):
             arr.dtype = arr.dtype.newbyteorder(byteorder)
 
     def flatten(self, obj, data):
@@ -259,8 +258,7 @@ class NumpyNDArrayHandlerView(NumpyNDArrayHandlerBinary):
             # store by reference
             data['base'] = self.context.flatten(base, reset=False)
 
-            offset = obj.ctypes.data - base.ctypes.data
-            if offset:
+            if offset := obj.ctypes.data - base.ctypes.data:
                 data['offset'] = offset
 
             if not obj.flags.c_contiguous:

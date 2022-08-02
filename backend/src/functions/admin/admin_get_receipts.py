@@ -28,12 +28,12 @@ def lambda_handler(event, context):
         if "day" in event:
             d = event["day"] + "/"
 
-    prefix = "{}/{}{}".format(y, m, d)
+    prefix = f"{y}/{m}{d}"
     bucket = os.environ["RECEIPTS_BUCKET"]
     download_dir(client, resource, prefix, '/tmp', bucket)
-    zip_file = "{}dvsa-order-receipts.zip".format(prefix.replace("/", "-"))
+    zip_file = f'{prefix.replace("/", "-")}dvsa-order-receipts.zip'
 
-    zf = zipfile.ZipFile("/tmp/" + zip_file, "w")
+    zf = zipfile.ZipFile(f"/tmp/{zip_file}", "w")
     for dirname, subdirs, files in os.walk("/tmp"):
         zf.write(dirname)
         for filename in files:
@@ -41,9 +41,12 @@ def lambda_handler(event, context):
                 zf.write(os.path.join(dirname, filename))
     zf.close()
 
-    client.upload_file("/tmp/" + zip_file, bucket, "zip/" + zip_file)
-    signed_link = client.generate_presigned_url('get_object', Params={'Bucket': bucket, 'Key': "zip/" + zip_file},
-                                                ExpiresIn=3600)
+    client.upload_file(f"/tmp/{zip_file}", bucket, f"zip/{zip_file}")
+    signed_link = client.generate_presigned_url(
+        'get_object',
+        Params={'Bucket': bucket, 'Key': f"zip/{zip_file}"},
+        ExpiresIn=3600,
+    )
 
-    res = {"status": "ok", "download_url": signed_link}
-    return res
+
+    return {"status": "ok", "download_url": signed_link}

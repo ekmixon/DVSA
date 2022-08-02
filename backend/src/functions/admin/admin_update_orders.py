@@ -64,38 +64,36 @@ def lambda_handler(event, context):
     else:
         res = {"status": "err", "msg": "Unknown user. Are you an admin?"}
         return res
-        
+
     token_sections = auth_header.split('.')
     try:
         auth_data = base64.b64decode(token_sections[1])
     except TypeError:
         try:
-            auth_data = base64.b64decode(token_sections[1]+"=")
+            auth_data = base64.b64decode(f"{token_sections[1]}=")
         except TypeError:
             try:
-                auth_data = base64.b64decode(token_sections[1]+"==")
+                auth_data = base64.b64decode(f"{token_sections[1]}==")
             except TypeError:
                 res = {"status": "err", "msg": "Could not prase authorization header"}
                 return res
-            
+
     token = json.loads(auth_data);
     user = token["username"];
-    
+
     action = event['body']['action']
     orderId = event['body']['order-id']
     item = event['body']['item']
     ts = int(time.time())
 
     if action == "add":
-        res = addItem(user, item, ts)
+        return addItem(user, item, ts)
 
     elif action == "delete":
-        res = deleteItem(orderId, user)
+        return deleteItem(orderId, user)
 
     elif action == "update":
-        res = updateItem(orderId, user, item, ts)
+        return updateItem(orderId, user, item, ts)
 
     else:
-        res = {"status": "err", "msg": "unknown command"}
-
-    return res
+        return {"status": "err", "msg": "unknown command"}
